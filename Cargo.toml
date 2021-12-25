@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+async-trait = "0.1.52"
 anyhow = "1.0.52"
 tui = { version = "0.16.0", features = ["crossterm"], default-features = false }
 aws-config = "0.3.0"

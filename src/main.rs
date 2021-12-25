@@ -1,6 +1,8 @@
 mod ui;
-mod streams;
+mod kinesis;
 mod app;
+mod service;
+mod cloud;
 
 use aws_sdk_kinesis::output::ListStreamsOutput;
 use aws_sdk_kinesis::Client;
@@ -36,13 +38,13 @@ async fn main() -> anyhow::Result<()> {
 
     // create app and run it
     let tick_rate = Duration::from_millis(250);
-    let app = App::new();
+    let app = crate::app::App::new();
 
     let (tx, rx) = tokio::sync::mpsc::channel(1);
     let (shutdown_tx, shutdown_rx) = tokio::sync::broadcast::channel(1);
 
-    let streams_handle = tokio::task::spawn(streams::Streams::new().await.run(tx, shutdown_tx.subscribe()));
-    let app_handle = tokio::task::spawn(run_app(
+    let streams_handle = tokio::task::spawn(kinesis::Streams::new().await.run(tx, shutdown_tx.subscribe()));
+    let app_handle = tokio::task::spawn(app::run_app(
         terminal,
         app,
         rx,

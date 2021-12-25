@@ -1,7 +1,15 @@
+use std::any;
+use tokio::time::{Duration, Instant};
+use tui::backend::Backend;
+use tui::Terminal;
+use tui::widgets::ListState;
+use crate::service::resource::{Resource, ResourceCrud};
+use crate::service::{Service, ServiceType};
+use crate::ui;
 
-struct StatefulList<T> {
-    state: ListState,
-    items: Vec<T>,
+pub struct StatefulList<T> {
+    pub(crate) state: ListState,
+    pub(crate) items: Vec<T>,
 }
 
 impl<T> StatefulList<T> {
@@ -51,58 +59,28 @@ impl<T> StatefulList<T> {
 ///
 /// Check the event handling at the bottom to see how to change the state on incoming events.
 /// Check the drawing logic for items on how to specify the highlighting style for selected items.
-struct App<'a> {
-    streams: StatefulList<String>,
-    events: Vec<(&'a str, &'a str)>,
+pub(crate) struct App {
+    pub selected_service: Option<ServiceType>,
+    pub services: StatefulList<String>,
 }
 
-impl<'a> App<'a> {
-    fn new() -> App<'a> {
-        App {
-            streams: StatefulList::with_items(vec![]),
-            events: vec![
-                ("Event1", "INFO"),
-                ("Event2", "INFO"),
-                ("Event3", "CRITICAL"),
-                ("Event4", "ERROR"),
-                ("Event5", "INFO"),
-                ("Event6", "INFO"),
-                ("Event7", "WARNING"),
-                ("Event8", "INFO"),
-                ("Event9", "INFO"),
-                ("Event10", "INFO"),
-                ("Event11", "CRITICAL"),
-                ("Event12", "INFO"),
-                ("Event13", "INFO"),
-                ("Event14", "INFO"),
-                ("Event15", "INFO"),
-                ("Event16", "INFO"),
-                ("Event17", "ERROR"),
-                ("Event18", "ERROR"),
-                ("Event19", "INFO"),
-                ("Event20", "INFO"),
-                ("Event21", "WARNING"),
-                ("Event22", "INFO"),
-                ("Event23", "INFO"),
-                ("Event24", "WARNING"),
-                ("Event25", "INFO"),
-                ("Event26", "INFO"),
-            ],
-        }
+impl App {
+    pub(crate) fn new() -> App {
+        App { selected_service: None, services: StatefulList::with_items(vec!["Kinesis".to_string()]) }
     }
 
     /// Rotate through the event list.
     /// This only exists to simulate some kind of "progress"
     fn on_tick(&mut self) {
-        let event = self.events.remove(0);
-        self.events.push(event);
+        // let event = self.events.remove(0);
+        // self.events.push(event);
     }
 }
 
 
-async fn run_app<B: Backend>(
+pub(crate) async fn run_app<B: Backend>(
     mut terminal: Terminal<B>,
-    mut app: App<'static>,
+    mut app: App,
     mut rx: tokio::sync::mpsc::Receiver<Vec<String>>,
     mut shutdown_tx: tokio::sync::broadcast::Sender<()>,
     mut shutdown_rx: tokio::sync::broadcast::Receiver<()>,
@@ -117,27 +95,31 @@ async fn run_app<B: Backend>(
             }
             items = rx.recv() => {
                 if let Some(items) = items {
-                    app.streams.items = items;
+                    // app.streams.items = items;
                 }
             },
             _ = futures::future::ready(()) => {
-                terminal.draw(|f| ui::ui(f, &mut app))?;
-
-                // let items = rx.recv().await;
+                terminal.draw(|f| crate::ui::ui(f, &mut app))?;
 
                 let timeout = tick_rate
                     .checked_sub(last_tick.elapsed())
                     .unwrap_or_else(|| Duration::from_secs(0));
                 if crossterm::event::poll(timeout)? {
-                    if let Event::Key(key) = event::read()? {
+                    if let crossterm::event::Event::Key(key) = crossterm::event::read()? {
                         match key.code {
-                            KeyCode::Char('q') => {
+                            crossterm::event::KeyCode::Char('q') => {
                                 shutdown_tx.send(())?;
                                 return Ok(terminal)
                             },
-                            KeyCode::Left => app.streams.unselect(),
-                            KeyCode::Down => app.streams.next(),
-                            KeyCode::Up => app.streams.previous(),
+                            crossterm::event::KeyCode::Enter => {
+                                if let Some(idx) = app.services.state.selected() {
+                                    let service = app.services.items[idx].clone();
+                                    app.selected_service = Some(ServiceType(service));
+                                }
+                            }
+                            crossterm::event::KeyCode::Left => app.services.unselect(),
+                            crossterm::event::KeyCode::Down => app.services.next(),
+                            crossterm::event::KeyCode::Up => app.services.previous(),
                             _ => {}
                         }
                     }

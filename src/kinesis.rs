@@ -24,14 +24,15 @@ impl Streams {
                     return Ok(())
                 }
                 _ = tick.tick() => {
-                    tx.send(vec!["A".to_string()]).await?;
+                    let streams = self.client.list_streams().send().await?;
+                    tx.send(streams.stream_names.unwrap_or(vec![])).await?;
                 }
             }
         }
     }
 
     async fn get_client() -> aws_sdk_kinesis::Client {
-        Client::new(&get_config().await)
+        Client::new(&Self::get_config().await)
     }
 
     async fn get_config() -> aws_config::Config {

@@ -7,6 +7,39 @@ use crate::service::resource::{Resource, ResourceCrud};
 use crate::service::{Service, ServiceType};
 use crate::ui;
 
+pub trait GetItems {
+    fn get_items() -> Vec<String>;
+}
+
+pub struct StatefulEnum<T> {
+    current: Option<T>,
+    pub(crate) items: StatefulList<String>,
+    state: ListState,
+}
+
+impl <T> StatefulEnum<T>
+    where T: GetItems
+{
+    fn new() -> Self {
+        Self {
+            current: None,
+            items: StatefulList::with_items(T::get_items()),
+            state: ListState::default()
+        }
+    }
+}
+
+impl <T> StatefulEnum<T>
+    where T: From<String>
+{
+    fn select(&mut self) {
+        if let Some(idx) = self.state.selected() {
+            let name = self.items.items[idx].clone();
+            self.current = Some(T::from(name));
+        }
+    }
+}
+
 pub struct StatefulList<T> {
     pub(crate) state: ListState,
     pub(crate) items: Vec<T>,
@@ -60,20 +93,17 @@ impl<T> StatefulList<T> {
 /// Check the event handling at the bottom to see how to change the state on incoming events.
 /// Check the drawing logic for items on how to specify the highlighting style for selected items.
 pub(crate) struct App {
-    pub selected_service: Option<ServiceType>,
-    pub services: StatefulList<String>,
+    pub(crate) service: StatefulEnum<crate::cloud::aws::Services>
 }
 
 impl App {
     pub(crate) fn new() -> App {
-        App { selected_service: None, services: StatefulList::with_items(vec!["Kinesis".to_string()]) }
+        App {
+            service: StatefulEnum::new()
+        }
     }
 
-    /// Rotate through the event list.
-    /// This only exists to simulate some kind of "progress"
     fn on_tick(&mut self) {
-        // let event = self.events.remove(0);
-        // self.events.push(event);
     }
 }
 
@@ -93,11 +123,11 @@ pub(crate) async fn run_app<B: Backend>(
             _ = shutdown_rx.recv() => {
                 return Ok(terminal)
             }
-            items = rx.recv() => {
-                if let Some(items) = items {
-                    // app.streams.items = items;
-                }
-            },
+            // items = rx.recv() => {
+            //     if let Some(items) = items {
+            //         // app.streams.items = items;
+            //     }
+            // },
             _ = futures::future::ready(()) => {
                 terminal.draw(|f| crate::ui::ui(f, &mut app))?;
 
@@ -111,15 +141,10 @@ pub(crate) async fn run_app<B: Backend>(
                                 shutdown_tx.send(())?;
                                 return Ok(terminal)
                             },
-                            crossterm::event::KeyCode::Enter => {
-                                if let Some(idx) = app.services.state.selected() {
-                                    let service = app.services.items[idx].clone();
-                                    app.selected_service = Some(ServiceType(service));
-                                }
-                            }
-                            crossterm::event::KeyCode::Left => app.services.unselect(),
-                            crossterm::event::KeyCode::Down => app.services.next(),
-                            crossterm::event::KeyCode::Up => app.services.previous(),
+                            crossterm::event::KeyCode::Enter => app.service.select(),
+                            crossterm::event::KeyCode::Left => app.service.items.unselect(),
+                            crossterm::event::KeyCode::Down => app.service.items.next(),
+                            crossterm::event::KeyCode::Up => app.service.items.previous(),
                             _ => {}
                         }
                     }

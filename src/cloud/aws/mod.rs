@@ -2,8 +2,11 @@ use std::future::Future;
 use crate::service;
 use async_trait::async_trait;
 use crate::service::Service;
+use kinesis::Kinesis;
+use ec2::Ec2;
 
 mod kinesis;
+mod ec2;
 
 struct Arn(String);
 
@@ -35,4 +38,9 @@ impl service::Provider for AwsProvider {
     async fn new() -> anyhow::Result<Self> {
         Ok(AwsProvider {})
     }
+}
+
+service::services! {
+    Kinesis
+    Ec2
 }

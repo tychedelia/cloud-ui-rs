@@ -1,1 +1,1 @@
-mod aws;
+pub(crate) mod aws;

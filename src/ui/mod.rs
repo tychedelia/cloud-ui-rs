@@ -19,7 +19,8 @@ pub(crate) fn ui<B: Backend>(f: &mut Frame<B>, app: &mut crate::app::App) {
         .split(f.size());
 
     let items: Vec<ListItem> = app
-        .services
+        .service
+        .items
         .items
         .iter()
         .map(|service| {
@@ -38,5 +39,5 @@ pub(crate) fn ui<B: Backend>(f: &mut Frame<B>, app: &mut crate::app::App) {
         .highlight_symbol(">> ");
 
 
-    f.render_widget(services, chunks[0]);
+    f.render_stateful_widget(services, chunks[0], &mut app.service.items.state);
 }

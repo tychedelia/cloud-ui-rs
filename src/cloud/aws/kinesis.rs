@@ -5,8 +5,8 @@ use crate::cloud::aws;
 use crate::service::resource::{Resource, ResourceDescription, ResourceType};
 use async_trait::async_trait;
 
-struct Kinesis {
-    client: aws_sdk_kinesis::Client,
+pub struct Kinesis {
+    client: Option<aws_sdk_kinesis::Client>,
     provider: AwsProvider,
 }
 
@@ -15,11 +15,15 @@ struct Kinesis {
 impl service::Service for Kinesis {
     type Provider = AwsProvider;
 
-    async fn new() -> anyhow::Result<Kinesis> {
-        Ok(Self {
-            client: Self::new_client().await?,
+    fn new() -> Kinesis {
+        Self {
+            client: None,
             provider: AwsProvider::new(),
-        })
+        }
+    }
+
+    async fn run(self)  -> anyhow::Result<()> {
+        todo!()
     }
 
     fn get_resources(&self) -> anyhow::Result<Vec<ResourceType>> {
@@ -45,7 +49,7 @@ struct StreamCrud {
 #[async_trait]
 impl service::resource::ResourceCrud<Stream> for StreamCrud {
     async fn list(&self) -> anyhow::Result<Vec<Stream>> {
-        let streams = self.svc.client.list_streams().send().await?
+        let streams = self.svc.client.as_ref().unwrap().list_streams().send().await?
             .stream_names
             .unwrap_or(vec![])
             .iter()
@@ -63,7 +67,7 @@ impl service::resource::ResourceCrud<Stream> for StreamCrud {
     }
 
     async fn describe(&self, id: String) -> anyhow::Result<Option<ResourceDescription<Stream>>> {
-        let description = self.svc.client.describe_stream()
+        let description = self.svc.client.as_ref().unwrap().describe_stream()
             .stream_name(&id)
             .send().await?
             .stream_description

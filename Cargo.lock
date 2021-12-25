@@ -84,6 +84,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "aws-sdk-ec2"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "18700b45c500bbff373e6f9b86a458db85823d42fc99b5c36067b28d64ed12ba"
+dependencies = [
+ "aws-endpoint",
+ "aws-http",
+ "aws-sig-auth",
+ "aws-smithy-async",
+ "aws-smithy-client",
+ "aws-smithy-http",
+ "aws-smithy-http-tower",
+ "aws-smithy-query",
+ "aws-smithy-types",
+ "aws-smithy-xml",
+ "aws-types",
+ "bytes",
+ "fastrand",
+ "http",
+ "tower",
+]
+
+[[package]]
 name = "aws-sdk-kinesis"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -684,6 +707,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "aws-config",
+ "aws-sdk-ec2",
  "aws-sdk-kinesis",
  "crossterm 0.22.1",
  "futures",

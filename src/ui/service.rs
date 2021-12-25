@@ -5,51 +5,44 @@ use tui::Frame;
 use tui::layout::Rect;
 use tui::style::{Color, Modifier, Style};
 use tui::text::Spans;
-use tui::widgets::{Block, Borders, List, ListItem};
+use tui::widgets::{Block, Borders, List, ListItem, Table};
 use crate::app::StatefulList;
 use crate::service;
+use crate::service::Service;
 use crate::ui;
+use crate::ui::component::TableList;
 
-struct ServiceState {
-    resources: StatefulList<String>,
+pub(crate) struct ServiceState {
+    pub(crate) resources: StatefulList<String>,
 }
 
-pub(crate) struct ServiceUi<S>
+pub(crate) struct ServiceUi<'a, S>
 {
-    svc: S,
+    svc: &'a S,
     state: ServiceState,
 }
 
-impl <S> ui::Ui<ServiceState> for ServiceUi<S>
-    where S: service::Service
-{
-    fn ui<B>(&self, f: &mut Frame<B>, area: Rect, mut state: ServiceState) -> anyhow::Result<()>
-        where B: Backend {
-        let resource_names: Vec<String> = self.svc
-            .get_resources()?
+impl <'a, S> ServiceUi<'a, S>
+    where S: Service {
+    pub fn new(svc: &'a S) -> Self {
+        let items = svc.get_resources().unwrap()
             .iter()
             .map(|x| x.0.clone())
             .collect();
+        Self {
+            svc,
+            state: ServiceState { resources: StatefulList::with_items(items) }
+        }
+    }
+}
 
-        let resources: Vec<ListItem> = resource_names
-            .iter()
-            .map(|r| {
-                let mut lines = vec![Spans::from(r.clone())];
-                ListItem::new(lines).style(Style::default().fg(Color::Black).bg(Color::White))
-            })
-            .collect();
-
-        let resources = List::new(resources)
-            .block(Block::default().borders(Borders::ALL).title("Services"))
-            .highlight_style(
-                Style::default()
-                    .bg(Color::LightGreen)
-                    .add_modifier(Modifier::BOLD),
-            )
-            .highlight_symbol(">> ");
-
-        // We can now render the item list
-        f.render_stateful_widget(resources, area, &mut state.resources.state);
+impl <'a, S> ui::Ui<()> for ServiceUi<'a, S>
+    where S: service::Service
+{
+    fn ui<B>(&mut self, f: &mut Frame<B>, area: Rect, state: &mut ()) -> anyhow::Result<()>
+        where B: Backend {
+        let mut tl = TableList {};
+        tl.ui(f, area, &mut self.state.resources);
         Ok(())
     }
 }

@@ -6,13 +6,14 @@ use tui::widgets::ListState;
 use crate::service::resource::{Resource, ResourceCrud};
 use crate::service::{Service, ServiceType};
 use crate::ui;
+use crate::ui::service::ServiceState;
 
 pub trait GetItems {
     fn get_items() -> Vec<String>;
 }
 
 pub struct StatefulEnum<T> {
-    current: Option<T>,
+    pub current: Option<T>,
     pub(crate) items: StatefulList<String>,
     state: ListState,
 }
@@ -33,7 +34,7 @@ impl <T> StatefulEnum<T>
     where T: From<String>
 {
     fn select(&mut self) {
-        if let Some(idx) = self.state.selected() {
+        if let Some(idx) = self.items.state.selected() {
             let name = self.items.items[idx].clone();
             self.current = Some(T::from(name));
         }
@@ -46,7 +47,7 @@ pub struct StatefulList<T> {
 }
 
 impl<T> StatefulList<T> {
-    fn with_items(items: Vec<T>) -> StatefulList<T> {
+    pub fn with_items(items: Vec<T>) -> StatefulList<T> {
         StatefulList {
             state: ListState::default(),
             items,
@@ -93,13 +94,13 @@ impl<T> StatefulList<T> {
 /// Check the event handling at the bottom to see how to change the state on incoming events.
 /// Check the drawing logic for items on how to specify the highlighting style for selected items.
 pub(crate) struct App {
-    pub(crate) service: StatefulEnum<crate::cloud::aws::Services>
+    pub(crate) service: StatefulEnum<crate::cloud::aws::Services>,
 }
 
 impl App {
     pub(crate) fn new() -> App {
         App {
-            service: StatefulEnum::new()
+            service: StatefulEnum::new(),
         }
     }
 
@@ -141,6 +142,10 @@ pub(crate) async fn run_app<B: Backend>(
                                 shutdown_tx.send(())?;
                                 return Ok(terminal)
                             },
+                            crossterm::event::KeyCode::Esc => app.service.current = None,
+                            crossterm::event::KeyCode::Char('j') => app.service.items.next(),
+                            crossterm::event::KeyCode::Char('k') => app.service.items.previous(),
+                            crossterm::event::KeyCode::Char('h') => app.service.items.unselect(),
                             crossterm::event::KeyCode::Enter => app.service.select(),
                             crossterm::event::KeyCode::Left => app.service.items.unselect(),
                             crossterm::event::KeyCode::Down => app.service.items.next(),

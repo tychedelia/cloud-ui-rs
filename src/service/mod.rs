@@ -17,6 +17,15 @@ macro_rules! services {
             pub enum Services { $($body($body),)* }
         }
 
+        impl crate::ui::Ui<()> for Services {
+            fn ui<B>(&mut self, f: &mut tui::Frame<B>, area: tui::layout::Rect, state: &mut ()) -> anyhow::Result<()>
+                where B: tui::backend::Backend {
+                match self {
+                    $(Services::$body(svc) => crate::ui::service::ServiceUi::new(svc).ui(f, area, state),)*
+                }
+            }
+        }
+
         impl crate::app::GetItems for Services {
             fn get_items() -> Vec<String> {
                 vec![
@@ -41,9 +50,8 @@ pub(crate) use as_item;
 
 #[async_trait]
 pub(crate) trait Service
-    where Self: Sized
 {
-    type Provider: Provider;
+    type Provider: Provider + ?Sized;
 
     fn new() -> Self;
 

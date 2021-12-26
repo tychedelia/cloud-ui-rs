@@ -14,6 +14,7 @@ use crate::ui::component::TableList;
 
 pub(crate) struct ServiceState {
     pub(crate) resources: StatefulList<String>,
+    // pub(crate) current_resource: Option<>,
 }
 
 pub(crate) struct ServiceUi<'a, S>

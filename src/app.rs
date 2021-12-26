@@ -3,7 +3,7 @@ use tokio::time::{Duration, Instant};
 use tui::backend::Backend;
 use tui::Terminal;
 use tui::widgets::ListState;
-use crate::service::resource::{Resource, ResourceCrud};
+use crate::service::resource::{Resource, ResourceController};
 use crate::service::{Service, ServiceType};
 use crate::ui;
 use crate::ui::service::ServiceState;

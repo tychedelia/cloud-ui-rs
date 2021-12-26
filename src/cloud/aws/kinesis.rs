@@ -4,8 +4,9 @@ use crate::service;
 use crate::cloud::aws;
 use crate::service::resource::{Resource, ResourceDescription, ResourceType};
 use async_trait::async_trait;
+use crate::service::Service;
 
-pub struct Kinesis {
+pub(crate) struct Kinesis {
     client: Option<aws_sdk_kinesis::Client>,
     provider: AwsProvider,
 }
@@ -42,12 +43,20 @@ impl aws::AwsService<aws_sdk_kinesis::Client> for Kinesis {
     }
 }
 
-struct StreamCrud {
+pub(crate) struct Streams {
     svc: Kinesis,
 }
 
+impl Streams {
+    fn new() -> Self {
+        Self {
+            svc: Kinesis::new()
+        }
+    }
+}
+
 #[async_trait]
-impl service::resource::ResourceCrud<Stream> for StreamCrud {
+impl service::resource::ResourceController<Stream> for Streams {
     async fn list(&self) -> anyhow::Result<Vec<Stream>> {
         let streams = self.svc.client.as_ref().unwrap().list_streams().send().await?
             .stream_names
@@ -60,10 +69,6 @@ impl service::resource::ResourceCrud<Stream> for StreamCrud {
             })
             .collect();
         Ok(streams)
-    }
-
-    async fn get(&self, id: String) -> anyhow::Result<Option<Stream>> {
-        Ok(None)
     }
 
     async fn describe(&self, id: String) -> anyhow::Result<Option<ResourceDescription<Stream>>> {
@@ -82,7 +87,7 @@ impl service::resource::ResourceCrud<Stream> for StreamCrud {
     }
 }
 
-struct Stream {
+pub(crate) struct Stream {
     name: String,
 }
 
@@ -92,4 +97,8 @@ impl Resource for Stream {
     fn get_name(&self) -> String {
         self.name.clone()
     }
+}
+
+service::resource::resources! {
+    Streams, Stream,
 }

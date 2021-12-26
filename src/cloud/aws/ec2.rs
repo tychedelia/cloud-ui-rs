@@ -47,7 +47,7 @@ struct StreamCrud {
 }
 
 #[async_trait]
-impl service::resource::ResourceCrud<Instance> for StreamCrud {
+impl service::resource::ResourceController<Instance> for StreamCrud {
     async fn list(&self) -> anyhow::Result<Vec<Instance>> {
         let streams = self.svc.client.as_ref().unwrap().describe_instances().send().await?
             .reservations
@@ -60,10 +60,6 @@ impl service::resource::ResourceCrud<Instance> for StreamCrud {
             })
             .collect();
         Ok(streams)
-    }
-
-    async fn get(&self, id: String) -> anyhow::Result<Option<Instance>> {
-        Ok(None)
     }
 
     async fn describe(&self, id: String) -> anyhow::Result<Option<ResourceDescription<Instance>>> {

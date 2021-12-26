@@ -1,21 +1,15 @@
 use std::any;
 use std::future::Future;
 use async_trait::async_trait;
-use crate::service::resource::{Resource, ResourceType};
+use crate::service::resource::{ResourceType};
 
 pub(crate) mod resource;
 
 pub(crate) struct ServiceType(pub String);
 
-macro_rules! as_item {
-    ($i:item) => { $i };
-}
-
 macro_rules! services {
     ($($body:tt)*) => {
-        crate::service::as_item! {
-            pub enum Services { $($body($body),)* }
-        }
+        pub(crate) enum Services { $($body($body),)* }
 
         impl crate::ui::Ui<()> for Services {
             fn ui<B>(&mut self, f: &mut tui::Frame<B>, area: tui::layout::Rect, state: &mut ()) -> anyhow::Result<()>
@@ -45,8 +39,8 @@ macro_rules! services {
     };
 }
 
+
 pub(crate) use services;
-pub(crate) use as_item;
 
 #[async_trait]
 pub(crate) trait Service

@@ -1,5 +1,6 @@
 pub(crate) mod service;
 mod component;
+pub(crate) mod resource;
 
 use tui::backend::Backend;
 use tui::Frame;

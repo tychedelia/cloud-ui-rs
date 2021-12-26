@@ -5,7 +5,7 @@ use crate::service::Service;
 use kinesis::Kinesis;
 use ec2::Ec2;
 
-mod kinesis;
+pub(crate) mod kinesis;
 mod ec2;
 
 struct Arn(String);
@@ -15,8 +15,8 @@ pub struct AwsProvider {
 }
 
 #[async_trait]
-trait AwsService<T>
-    where Self: Service
+trait AwsService<'a, T>
+    where Self: Service<'a>
 {
     async fn new_client() -> anyhow::Result<T>;
 }
@@ -41,6 +41,6 @@ impl service::Provider for AwsProvider {
 }
 
 service::services! {
-    Kinesis
-    Ec2
+    kinesis, Kinesis,
+    ec2, Ec2,
 }

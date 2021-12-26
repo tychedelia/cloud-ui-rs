@@ -1,6 +1,7 @@
+use std::io::Stdout;
 use std::marker::PhantomData;
 use futures::StreamExt;
-use tui::backend::Backend;
+use tui::backend::{Backend, CrosstermBackend};
 use tui::buffer::Buffer;
 use tui::Frame;
 use tui::layout::Rect;
@@ -47,12 +48,12 @@ impl <'a, R, T> ResourceUi<'a, R, T>
 
 impl <'a, R, T> ui::Ui<()> for ResourceUi<'a, R, T>
     where R: ResourceController<T>,
-          T: Resource
+          T: Resource,
 {
     fn ui<B>(&mut self, f: &mut Frame<B>, area: Rect, state: &mut ()) -> anyhow::Result<()>
         where B: Backend {
         let mut tl = TableList {};
-        tl.ui(f, area, &mut self.state.items);
+        tl.ui(f, area, &mut self.state.items)?;
         Ok(())
     }
 }

@@ -1,10 +1,11 @@
 use std::any;
+use std::io::Stdout;
 use tokio::time::{Duration, Instant};
-use tui::backend::Backend;
+use tui::backend::{Backend, CrosstermBackend};
 use tui::Terminal;
 use tui::widgets::ListState;
-use crate::service::resource::{Resource, ResourceController};
-use crate::service::{Service, ServiceType};
+use crate::service::resource::{Resource, ResourceController, ResourceKind};
+use crate::service::{Service, ServiceKind, ServiceType};
 use crate::ui;
 use crate::ui::service::ServiceState;
 
@@ -93,14 +94,76 @@ impl<T> StatefulList<T> {
 ///
 /// Check the event handling at the bottom to see how to change the state on incoming events.
 /// Check the drawing logic for items on how to specify the highlighting style for selected items.
-pub(crate) struct App {
-    pub(crate) service: StatefulEnum<crate::cloud::aws::Services>,
+pub(crate) struct App<Svc, Res> {
+    pub(crate) state: AppState<Svc, Res>
 }
 
-impl App {
-    pub(crate) fn new() -> App {
+pub(crate) enum AppState<Svc, Res> {
+    Services { service: StatefulEnum<Svc> },
+    Resources { resources: StatefulEnum<Res> },
+}
+
+impl <Svc, Res> App<Svc, Res>
+    where Svc: ServiceKind,
+          Res: ResourceKind,
+{
+    pub(crate) fn new() -> App<Svc, Res> {
         App {
-            service: StatefulEnum::new(),
+            state: AppState::Services { service: StatefulEnum::new() }
+        }
+    }
+
+    fn on_esc(&mut self) {
+        match self.state {
+            AppState::Services { .. } => {}
+            AppState::Resources { .. } => {
+                self.state = AppState::Services { service: StatefulEnum::new() }
+            }
+        }
+    }
+
+    fn on_up(&mut self) {
+        match &mut self.state {
+            AppState::Services {service } => {
+                service.items.next();
+            }
+            AppState::Resources { resources } => {
+                resources.items.next()
+            }
+        }
+    }
+
+    fn on_down(&mut self) {
+        match &mut self.state {
+            AppState::Services {service } => {
+                service.items.previous();
+            }
+            AppState::Resources { resources } => {
+                resources.items.previous()
+            }
+        }
+    }
+
+    fn on_select(&mut self) {
+        match &mut self.state {
+            AppState::Services { service } => {
+                service.select();
+                self.state = AppState::Resources { resources: StatefulEnum::new() }
+            }
+            AppState::Resources { resources } => {
+                // resources.select()
+            }
+        }
+    }
+
+    fn on_unselect(&mut self) {
+        match &mut self.state {
+            AppState::Services {service } => {
+                service.items.unselect();
+            }
+            AppState::Resources { resources } => {
+                resources.items.unselect()
+            }
         }
     }
 
@@ -109,14 +172,18 @@ impl App {
 }
 
 
-pub(crate) async fn run_app<B: Backend>(
+pub(crate) async fn run_app<B, Svc, Res>(
     mut terminal: Terminal<B>,
-    mut app: App,
+    mut app: App<Svc, Res>,
     mut rx: tokio::sync::mpsc::Receiver<Vec<String>>,
     mut shutdown_tx: tokio::sync::broadcast::Sender<()>,
     mut shutdown_rx: tokio::sync::broadcast::Receiver<()>,
     tick_rate: Duration,
-) -> anyhow::Result<Terminal<B>> {
+) -> anyhow::Result<Terminal<B>>
+    where B: Backend,
+          Svc: ServiceKind,
+          Res: ResourceKind,
+{
     let mut last_tick = Instant::now();
 
     loop {
@@ -130,7 +197,7 @@ pub(crate) async fn run_app<B: Backend>(
             //     }
             // },
             _ = futures::future::ready(()) => {
-                terminal.draw(|f| crate::ui::ui(f, &mut app))?;
+                terminal.draw(|f| crate::ui::ui(f, &mut app).unwrap())?;
 
                 let timeout = tick_rate
                     .checked_sub(last_tick.elapsed())
@@ -142,14 +209,14 @@ pub(crate) async fn run_app<B: Backend>(
                                 shutdown_tx.send(())?;
                                 return Ok(terminal)
                             },
-                            crossterm::event::KeyCode::Esc => app.service.current = None,
-                            crossterm::event::KeyCode::Char('j') => app.service.items.next(),
-                            crossterm::event::KeyCode::Char('k') => app.service.items.previous(),
-                            crossterm::event::KeyCode::Char('h') => app.service.items.unselect(),
-                            crossterm::event::KeyCode::Enter => app.service.select(),
-                            crossterm::event::KeyCode::Left => app.service.items.unselect(),
-                            crossterm::event::KeyCode::Down => app.service.items.next(),
-                            crossterm::event::KeyCode::Up => app.service.items.previous(),
+                            crossterm::event::KeyCode::Esc => app.on_esc(),
+                            crossterm::event::KeyCode::Char('j') => app.on_up(),
+                            crossterm::event::KeyCode::Char('k') => app.on_down(),
+                            crossterm::event::KeyCode::Char('h') => app.on_unselect(),
+                            crossterm::event::KeyCode::Enter => app.on_select(),
+                            crossterm::event::KeyCode::Left => app.on_unselect(),
+                            crossterm::event::KeyCode::Up => app.on_up(),
+                            crossterm::event::KeyCode::Down => app.on_down(),
                             _ => {}
                         }
                     }

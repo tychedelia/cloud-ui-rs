@@ -1,7 +1,8 @@
 mod table;
 mod header;
 
-use tui::backend::Backend;
+use std::io::Stdout;
+use tui::backend::{Backend, CrosstermBackend};
 use tui::Frame;
 use tui::layout::Rect;
 use tui::style::{Color, Modifier, Style};

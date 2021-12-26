@@ -2,8 +2,9 @@ use std::any::Any;
 use crate::cloud::aws::{AwsProvider, AwsService};
 use crate::service;
 use crate::cloud::aws;
-use crate::service::resource::{Resource, ResourceDescription, ResourceType};
+use crate::service::resource::{resources, Resource, ResourceDescription, ResourceKind, ResourceType};
 use async_trait::async_trait;
+use crate::service::Service;
 
 pub struct Ec2 {
     client: Option<aws_sdk_ec2::Client>,
@@ -12,8 +13,9 @@ pub struct Ec2 {
 
 
 #[async_trait]
-impl service::Service for Ec2 {
+impl <'a> service::Service<'a> for Ec2 {
     type Provider = AwsProvider;
+    type Resources = Resources;
 
     fn new() -> Ec2 {
         Self {
@@ -34,7 +36,7 @@ impl service::Service for Ec2 {
 }
 
 #[async_trait]
-impl aws::AwsService<aws_sdk_ec2::Client> for Ec2 {
+impl <'a> aws::AwsService<'a, aws_sdk_ec2::Client> for Ec2 {
     async fn new_client() -> anyhow::Result<aws_sdk_ec2::Client> {
         let config= Self::Provider::new().get_config().await;
         let client = aws_sdk_ec2::Client::new(&config);
@@ -42,12 +44,20 @@ impl aws::AwsService<aws_sdk_ec2::Client> for Ec2 {
     }
 }
 
-struct StreamCrud {
+pub(crate) struct Instances {
     svc: Ec2,
 }
 
+impl Instances {
+    fn new() -> Self {
+        Instances {
+            svc: Ec2::new()
+        }
+    }
+}
+
 #[async_trait]
-impl service::resource::ResourceController<Instance> for StreamCrud {
+impl service::resource::ResourceController<Instance> for Instances {
     async fn list(&self) -> anyhow::Result<Vec<Instance>> {
         let streams = self.svc.client.as_ref().unwrap().describe_instances().send().await?
             .reservations
@@ -67,7 +77,7 @@ impl service::resource::ResourceController<Instance> for StreamCrud {
     }
 }
 
-struct Instance {
+pub(crate) struct Instance {
     name: String,
 }
 
@@ -77,4 +87,8 @@ impl Resource for Instance {
     fn get_name(&self) -> String {
         self.name.clone()
     }
+}
+
+service::resource::resources! {
+    Instances, Instance,
 }

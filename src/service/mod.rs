@@ -1,21 +1,27 @@
 use std::any;
 use std::future::Future;
 use async_trait::async_trait;
-use crate::service::resource::{ResourceType};
+use crate::service::resource::{ResourceKind, ResourceType};
 
 pub(crate) mod resource;
 
 pub(crate) struct ServiceType(pub String);
 
+pub(crate) trait ServiceKind
+    where Self: GetItems + From<String>
+{}
+
 macro_rules! services {
-    ($($body:tt)*) => {
-        pub(crate) enum Services { $($body($body),)* }
+    ($($p:ident, $s:ident),*$(,)*) => {
+        pub(crate) enum Services { $($s($s),)* }
+
+        impl crate::service::ServiceKind for Services {}
 
         impl crate::ui::Ui<()> for Services {
             fn ui<B>(&mut self, f: &mut tui::Frame<B>, area: tui::layout::Rect, state: &mut ()) -> anyhow::Result<()>
                 where B: tui::backend::Backend {
                 match self {
-                    $(Services::$body(svc) => crate::ui::service::ServiceUi::new(svc).ui(f, area, state),)*
+                    $(Services::$s(svc) => crate::ui::service::ServiceUi::new(svc).ui(f, area, state),)*
                 }
             }
         }
@@ -23,7 +29,7 @@ macro_rules! services {
         impl crate::app::GetItems for Services {
             fn get_items() -> Vec<String> {
                 vec![
-                    $(stringify!($body).to_string(),)*
+                    $(stringify!($s).to_string(),)*
                 ]
             }
         }
@@ -31,7 +37,7 @@ macro_rules! services {
         impl From<String> for Services {
             fn from(str: String) -> Services {
                 match str.as_str() {
-                    $(stringify!($body) => Services::$body($body::new()),)*
+                    $(stringify!($s) => Services::$s($s::new()),)*
                     _ => panic!(),
                 }
             }
@@ -41,11 +47,12 @@ macro_rules! services {
 
 
 pub(crate) use services;
+use crate::app::GetItems;
 
 #[async_trait]
-pub(crate) trait Service
-{
+pub(crate) trait Service<'a> {
     type Provider: Provider + ?Sized;
+    type Resources: ResourceKind;
 
     fn new() -> Self;
 

@@ -1,8 +1,9 @@
 use std::any::Any;
+use std::marker::PhantomData;
 use crate::cloud::aws::{AwsProvider, AwsService};
 use crate::service;
 use crate::cloud::aws;
-use crate::service::resource::{Resource, ResourceDescription, ResourceType};
+use crate::service::resource::{Resource, ResourceDescription, ResourceKind, ResourceType};
 use async_trait::async_trait;
 use crate::service::Service;
 
@@ -13,8 +14,10 @@ pub(crate) struct Kinesis {
 
 
 #[async_trait]
-impl service::Service for Kinesis {
+impl <'a> service::Service<'a> for Kinesis
+{
     type Provider = AwsProvider;
+    type Resources = Resources;
 
     fn new() -> Kinesis {
         Self {
@@ -35,7 +38,7 @@ impl service::Service for Kinesis {
 }
 
 #[async_trait]
-impl aws::AwsService<aws_sdk_kinesis::Client> for Kinesis {
+impl <'a> aws::AwsService<'a, aws_sdk_kinesis::Client> for Kinesis {
     async fn new_client() -> anyhow::Result<aws_sdk_kinesis::Client> {
         let config= Self::Provider::new().get_config().await;
         let client = aws_sdk_kinesis::Client::new(&config);

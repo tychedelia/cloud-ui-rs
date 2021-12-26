@@ -38,7 +38,7 @@ async fn main() -> anyhow::Result<()> {
 
     // create app and run it
     let tick_rate = Duration::from_millis(250);
-    let app = crate::app::App::new();
+    let app = crate::app::App::<crate::cloud::aws::Services, crate::cloud::aws::kinesis::Resources>::new();
 
     let (tx, rx) = tokio::sync::mpsc::channel(1);
     let (shutdown_tx, shutdown_rx) = tokio::sync::broadcast::channel(1);

@@ -2,12 +2,14 @@ pub(crate) mod service;
 mod component;
 pub(crate) mod resource;
 
-use tui::backend::Backend;
+use std::io::Stdout;
+use tui::backend::{Backend, CrosstermBackend};
 use tui::Frame;
 use tui::layout::{Constraint, Corner, Direction, Layout, Rect};
 use tui::style::{Color, Modifier, Style};
 use tui::text::{Span, Spans};
 use tui::widgets::{Block, Borders, List, ListItem, Paragraph, Wrap};
+use crate::app::AppState;
 use crate::cloud::aws::Services;
 use crate::ui::component::TableList;
 
@@ -15,7 +17,7 @@ pub trait Ui<T> {
     fn ui<B>(&mut self, f: &mut Frame<B>, area: Rect, state: &mut T) -> anyhow::Result<()> where B: Backend;
 }
 
-pub(crate) fn ui<B: Backend>(f: &mut Frame<B>, app: &mut crate::app::App) {
+pub(crate) fn ui<B: Backend, Svc, Res>(f: &mut Frame<B>, app: &mut crate::app::App<Svc, Res>) -> anyhow::Result<()> {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Percentage(10), Constraint::Percentage(90)].as_ref())
@@ -34,13 +36,16 @@ pub(crate) fn ui<B: Backend>(f: &mut Frame<B>, app: &mut crate::app::App) {
 
     f.render_widget(title, chunks[0]);
 
-    match &mut app.service.current {
-        None => {
+    match &mut app.state {
+        AppState::Services { service } => {
             let mut tl = TableList {};
-            tl.ui(f, chunks[1], &mut app.service.items);
+            tl.ui(f, chunks[1], &mut service.items)?;
         }
-        Some(svc) => {
-            svc.ui(f, chunks[1], &mut ());
+        AppState::Resources { resources } => {
+            let mut tl = TableList {};
+            tl.ui(f, chunks[1], &mut resources.items)?;
         }
-    }
+    };
+
+    Ok(())
 }

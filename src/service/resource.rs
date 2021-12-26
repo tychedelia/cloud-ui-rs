@@ -3,6 +3,11 @@ use async_trait::async_trait;
 
 pub struct ResourceType(pub String);
 
+pub(crate) trait ResourceKind
+    where
+        Self: Ui<()> + Send + GetItems {
+}
+
 macro_rules! resources {
     ($($c:ident, $r:ident),*$(,)*) => {
         pub(crate) enum Resources { $($c($c),)* }
@@ -32,10 +37,14 @@ macro_rules! resources {
                 }
             }
         }
+
+        impl crate::service::resource::ResourceKind for Resources {}
     };
 }
 
 pub(crate) use resources;
+use crate::app::GetItems;
+use crate::ui::Ui;
 
 pub(crate) trait Resource
     // where Self: Sized
